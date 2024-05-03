@@ -8,15 +8,28 @@ plugins {
 
 rootProject.name = "paw-arbeidssoekerregisteret-monorepo-ekstern"
 
+include("microfrontend-feature-toggler")
+project(":microfrontend-feature-toggler").name = "arbeidssokerregisteret-microfrontend-feature-toggler"
+
 @Suppress("UnstableApiUsage")
 dependencyResolutionManagement {
 
     val githubPassword: String by settings
 
     repositories {
+        maven {
+            url = uri("https://maven.pkg.github.com/navikt/*")
+            credentials {
+                username = "x-access-token"
+                password = githubPassword
+            }
+        }
         mavenCentral()
         maven {
             url = uri("https://packages.confluent.io/maven/")
+        }
+        maven {
+            url = uri("https://jitpack.io")
         }
     }
 
@@ -53,7 +66,9 @@ dependencyResolutionManagement {
 
         create("loggingLibs") {
             library("logbackClassic", "ch.qos.logback", "logback-classic").version(logbackVersion)
-            library("logstashLogbackEncoder", "net.logstash.logback", "logstash-logback-encoder").version(logstashVersion)
+            library("logstashLogbackEncoder", "net.logstash.logback", "logstash-logback-encoder").version(
+                logstashVersion
+            )
         }
         create("ktorClient") {
             library("contentNegotiation", "io.ktor", "ktor-client-content-negotiation").withoutVersion()
@@ -93,10 +108,15 @@ dependencyResolutionManagement {
             library("pawAaregClient", "no.nav.paw", "aareg-client").version(pawAaregClientVersion)
         }
         create("arbeidssoekerRegisteret") {
-            library("apiKotlin", "no.nav.paw.arbeidssokerregisteret.api.schema", "arbeidssoekerregisteret-kotlin").version(arbeidssokerregisteretVersion)
-            library("mainAvroSchema", "no.nav.paw.arbeidssokerregisteret.api", "main-avro-schema").version(arbeidssokerregisteretVersion)
+            library(
+                "apiKotlin",
+                "no.nav.paw.arbeidssokerregisteret.api.schema",
+                "arbeidssoekerregisteret-kotlin"
+            ).version(arbeidssokerregisteretVersion)
+            library("mainAvroSchema", "no.nav.paw.arbeidssokerregisteret.api", "main-avro-schema")
+                .version(arbeidssokerregisteretVersion)
         }
-        create("orgApacheKafka") {
+        create("apacheKafka") {
             library("kafkaClients", "org.apache.kafka", "kafka-clients").version(orgApacheKafkaVersion)
             library("kafkaStreams", "org.apache.kafka", "kafka-streams").version(orgApacheKafkaVersion)
             library("streamsTest", "org.apache.kafka", "kafka-streams-test-utils").version(orgApacheKafkaVersion)
@@ -104,11 +124,19 @@ dependencyResolutionManagement {
         create("apacheAvro") {
             library("avro", "org.apache.avro", "avro").version(orgApacheAvroVersion)
             library("kafkaSerializer", "io.confluent", "kafka-avro-serializer").version(ioConfluentKafkaVersion)
-            library("kafkaStreamsAvroSerde", "io.confluent", "kafka-streams-avro-serde").version(ioConfluentKafkaVersion)
+            library(
+                "kafkaStreamsAvroSerde",
+                "io.confluent",
+                "kafka-streams-avro-serde"
+            ).version(ioConfluentKafkaVersion)
         }
         create("jackson") {
-            library("datatypeJsr310", "com.fasterxml.jackson.datatype", "jackson-datatype-jsr310").version(comFasterxmlJacksonVersion)
-            library("kotlin", "com.fasterxml.jackson.module", "jackson-module-kotlin").version(comFasterxmlJacksonVersion)
+            library("datatypeJsr310", "com.fasterxml.jackson.datatype", "jackson-datatype-jsr310").version(
+                comFasterxmlJacksonVersion
+            )
+            library("kotlin", "com.fasterxml.jackson.module", "jackson-module-kotlin").version(
+                comFasterxmlJacksonVersion
+            )
             library("ktorSerialization", "io.ktor", "ktor-serialization-jackson").withoutVersion()
             library("serializationJvm", "io.ktor", "ktor-serialization-jackson-jvm").withoutVersion()
         }
@@ -117,7 +145,11 @@ dependencyResolutionManagement {
             library("log", "no.nav.common", "log").version(noNavCommonVersion)
         }
         create("navSecurity") {
-            library("tokenValidationKtorV2", "no.nav.security", "token-validation-ktor-v2").version(noNavSecurityVersion)
+            library(
+                "tokenValidationKtorV2",
+                "no.nav.security",
+                "token-validation-ktor-v2"
+            ).version(noNavSecurityVersion)
             library("tokenClient", "no.nav.security", "token-client-core").version(noNavSecurityVersion)
         }
         create("hoplite") {

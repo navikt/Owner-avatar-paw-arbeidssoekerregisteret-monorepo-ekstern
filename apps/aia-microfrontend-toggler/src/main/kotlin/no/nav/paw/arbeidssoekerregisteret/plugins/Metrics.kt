@@ -1,4 +1,4 @@
-package no.nav.paw.arbeidssokerregisteret.plugins
+package no.nav.paw.arbeidssoekerregisteret.plugins
 
 import io.ktor.server.application.Application
 import io.ktor.server.application.install

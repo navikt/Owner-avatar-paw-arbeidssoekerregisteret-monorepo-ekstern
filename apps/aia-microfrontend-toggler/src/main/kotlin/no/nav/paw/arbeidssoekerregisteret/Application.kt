@@ -6,9 +6,8 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.micrometer.prometheus.PrometheusConfig
 import io.micrometer.prometheus.PrometheusMeterRegistry
-import no.nav.paw.arbeidssokerregisteret.ApplicationInfo
-import no.nav.paw.arbeidssokerregisteret.plugins.configureMetrics
-import no.nav.paw.arbeidssokerregisteret.routes.healthRoutes
+import no.nav.paw.arbeidssoekerregisteret.plugins.configureMetrics
+import no.nav.paw.arbeidssoekerregisteret.plugins.configureRouting
 import org.slf4j.LoggerFactory
 
 fun main() {
@@ -36,5 +35,5 @@ fun main() {
 
 fun Application.module(registry: PrometheusMeterRegistry) {
     configureMetrics(registry)
-    healthRoutes(registry)
+    configureRouting(registry)
 }

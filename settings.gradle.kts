@@ -8,8 +8,10 @@ plugins {
 
 rootProject.name = "paw-arbeidssoekerregisteret-monorepo-ekstern"
 
-include("microfrontend-feature-toggler")
-project(":microfrontend-feature-toggler").name = "arbeidssokerregisteret-microfrontend-feature-toggler"
+include(":libs:hoplite-config")
+
+include(":apps:aia-microfrontend-toggler")
+project(":apps:aia-microfrontend-toggler").name = "paw-arbeidssokerregisteret-aia-microfrontend-toggler"
 
 @Suppress("UnstableApiUsage")
 dependencyResolutionManagement {

@@ -9,13 +9,3 @@ data class RapporteringRequest(
     val harJobbetIDennePerioden: Boolean,
     val vilFortsetteSomArbeidssoeker: Boolean,
 )
-
-fun RapporteringRequest.toJson() =
-    """
-    {
-        "identitetsnummer": "$identitetsnummer",
-        "rapporteringsId": "$rapporteringsId",
-        "harJobbetIDennePerioden": "$harJobbetIDennePerioden",
-        "vilFortsetteSomArbeidssoeker": "$vilFortsetteSomArbeidssoeker"
-    }
-    """.trimIndent()

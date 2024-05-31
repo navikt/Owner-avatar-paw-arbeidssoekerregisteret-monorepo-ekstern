@@ -3,16 +3,19 @@ package no.nav.paw.rapportering.api.routes
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.serialization.jackson.*
-import io.ktor.server.routing.*
-import io.ktor.server.testing.*
+import io.ktor.client.call.body
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import io.ktor.serialization.jackson.jackson
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -23,13 +26,9 @@ import no.nav.paw.rapportering.api.config.APPLICATION_CONFIG_FILE_NAME
 import no.nav.paw.rapportering.api.config.ApplicationConfig
 import no.nav.paw.rapportering.api.domain.request.RapporteringRequest
 import no.nav.paw.rapportering.api.domain.request.TilgjengeligeRapporteringerRequest
-import no.nav.paw.rapportering.api.domain.request.toJson
 import no.nav.paw.rapportering.api.domain.response.TilgjengeligRapportering
-import no.nav.paw.rapportering.api.domain.response.toJson
 import no.nav.paw.rapportering.api.kafka.RapporteringProducer
 import no.nav.paw.rapportering.api.kafka.RapporteringTilgjengeligState
-import no.nav.paw.rapportering.api.plugins.configureAuthentication
-import no.nav.paw.rapportering.api.plugins.configureSerialization
 import no.nav.paw.rapportering.api.services.AutorisasjonService
 import no.nav.paw.rapportering.internehendelser.RapporteringTilgjengelig
 import no.nav.security.mock.oauth2.MockOAuth2Server
@@ -61,6 +60,7 @@ class RapporteringRoutesTest : FreeSpec({
         oauth.shutdown()
     }
 
+
     "Post /api/v1/tilgjengelige-rapporteringer" - {
         val discoveryUrl = oauth.wellKnownUrl("default").toString()
         val authProviders =
@@ -68,59 +68,50 @@ class RapporteringRoutesTest : FreeSpec({
                 it.copy(discoveryUrl = discoveryUrl, clientId = "default")
             }
         "should return OK status and empty list of TilgjengeligRapporteringerResponse" {
-            testApplication {
-                createClient {
-                    install(ContentNegotiation) {
-                        jackson {
-                            jackson {
-                                disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                                disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                                registerModule(JavaTimeModule())
-                            }
-                        }
-                    }
-                }
-                application {
-                    configureAuthentication(authProviders)
-                    configureSerialization()
-                    routing {
-                        rapporteringRoutes(
-                            kafkaKeyClient,
-                            "stateStore",
-                            rapporteringStateStore,
-                            kafkaStreams,
-                            httpClient,
-                            rapporteringProducer,
-                            autorisasjonService,
-                        )
-                    }
-                }
-
+            sharedTestApplication(
+                kafkaKeyClient,
+                rapporteringStateStore,
+                kafkaStreams,
+                httpClient,
+                rapporteringProducer,
+                autorisasjonService,
+                authProviders
+            ) {
                 coEvery { kafkaKeyClient.getIdAndKey(any()) } returns KafkaKeysResponse(1L, 1234L)
                 coEvery { autorisasjonService.verifiserTilgangTilBruker(any(), any(), any()) } returns true
                 every { rapporteringStateStore.get(any()) } returns null
                 every { kafkaStreams.queryMetadataForKey(any(), any(), any<Serializer<Long>>()) } returns
-                    KeyQueryMetadata.NOT_AVAILABLE
+                        KeyQueryMetadata.NOT_AVAILABLE
 
                 val token =
                     oauth.issueToken(
                         claims =
-                            mapOf(
-                                "acr" to "idporten-loa-high",
-                                "pid" to "12345678901",
-                            ),
+                        mapOf(
+                            "acr" to "idporten-loa-high",
+                            "pid" to "12345678901",
+                        ),
                     )
 
                 val postBody = TilgjengeligeRapporteringerRequest("12345678901")
 
+                val testClient = createClient {
+                    install(ContentNegotiation) {
+                        jackson {
+                            disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                            disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                            registerModule(JavaTimeModule())
+                            registerKotlinModule()
+                        }
+                    }
+                }
                 val response =
-                    client.post("/api/v1/tilgjengelige-rapporteringer") {
+                    testClient.post("/api/v1/tilgjengelige-rapporteringer") {
                         bearerAuth(token.serialize())
                         contentType(ContentType.Application.Json)
                         setBody(postBody)
                     }
                 response.status shouldBe HttpStatusCode.OK
-                response.bodyAsText() shouldBe emptyList<TilgjengeligRapportering>().toJson()
+                response.body<List<TilgjengeligRapportering>?>() shouldBe emptyList()
             }
         }
     }
@@ -132,30 +123,22 @@ class RapporteringRoutesTest : FreeSpec({
                 it.copy(discoveryUrl = discoveryUrl, clientId = "default")
             }
         "should return OK status" {
-            testApplication {
-                application {
-                    configureAuthentication(authProviders)
-                    configureSerialization()
-                    routing {
-                        rapporteringRoutes(
-                            kafkaKeyClient,
-                            "stateStore",
-                            rapporteringStateStore,
-                            kafkaStreams,
-                            httpClient,
-                            rapporteringProducer,
-                            autorisasjonService,
-                        )
-                    }
-                }
-
+            sharedTestApplication(
+                kafkaKeyClient,
+                rapporteringStateStore,
+                kafkaStreams,
+                httpClient,
+                rapporteringProducer,
+                autorisasjonService,
+                authProviders
+            ) {
                 val rapporteringsId = UUID.randomUUID()
 
                 coEvery { kafkaKeyClient.getIdAndKey(any()) } returns KafkaKeysResponse(1L, 1L)
                 coEvery { autorisasjonService.verifiserTilgangTilBruker(any(), any(), any()) } returns true
                 every { rapporteringStateStore.get(any()) } returns
-                    RapporteringTilgjengeligState(
-                        rapporteringer =
+                        RapporteringTilgjengeligState(
+                            rapporteringer =
                             listOf(
                                 RapporteringTilgjengelig(
                                     periodeId = UUID.randomUUID(),
@@ -167,16 +150,16 @@ class RapporteringRoutesTest : FreeSpec({
                                     gjelderTil = Instant.now(),
                                 ),
                             ),
-                    )
+                        )
                 coEvery { rapporteringProducer.produceMessage(any(), any()) } returns Unit
 
                 val postToken =
                     oauth.issueToken(
                         claims =
-                            mapOf(
-                                "acr" to "idporten-loa-high",
-                                "pid" to "12345678901",
-                            ),
+                        mapOf(
+                            "acr" to "idporten-loa-high",
+                            "pid" to "12345678901",
+                        ),
                     )
 
                 val postBody =
@@ -185,10 +168,21 @@ class RapporteringRoutesTest : FreeSpec({
                         rapporteringsId,
                         true,
                         true,
-                    ).toJson()
+                    )
+
+                val testClient = createClient {
+                    install(ContentNegotiation) {
+                        jackson {
+                            disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                            disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                            registerModule(JavaTimeModule())
+                            registerKotlinModule()
+                        }
+                    }
+                }
 
                 val response =
-                    client.post("/api/v1/rapportering") {
+                    testClient.post("/api/v1/rapportering") {
                         bearerAuth(postToken.serialize())
                         contentType(ContentType.Application.Json)
                         setBody(postBody)

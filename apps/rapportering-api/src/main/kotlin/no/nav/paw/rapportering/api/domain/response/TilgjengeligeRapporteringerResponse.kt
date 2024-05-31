@@ -1,5 +1,6 @@
 package no.nav.paw.rapportering.api.domain.response
 
+import no.nav.paw.rapportering.internehendelser.RapporteringTilgjengelig
 import java.time.Instant
 import java.util.UUID
 
@@ -12,7 +13,7 @@ data class TilgjengeligRapportering(
 
 typealias TilgjengeligRapporteringerResponse = List<TilgjengeligRapportering>
 
-fun List<no.nav.paw.rapportering.internehendelser.RapporteringTilgjengelig>.toResponse(): TilgjengeligRapporteringerResponse =
+fun List<RapporteringTilgjengelig>.toResponse(): TilgjengeligRapporteringerResponse =
     this.map {
         TilgjengeligRapportering(
             periodeId = it.periodeId,
@@ -21,15 +22,3 @@ fun List<no.nav.paw.rapportering.internehendelser.RapporteringTilgjengelig>.toRe
             gjelderTil = it.gjelderTil,
         )
     }
-
-fun TilgjengeligRapporteringerResponse.toJson() = """[${this.joinToString(",") { it.toJson() }}]"""
-
-fun TilgjengeligRapportering.toJson() =
-    """
-    {
-        "periodeId": "$periodeId",
-        "rapporteringsId": "$rapporteringsId",
-        "gjelderFra": "$gjelderFra",
-        "gjelderTil": "$gjelderTil"
-    }
-    """.trimIndent()

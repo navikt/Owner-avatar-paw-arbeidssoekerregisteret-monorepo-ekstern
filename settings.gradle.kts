@@ -226,6 +226,7 @@ dependencyResolutionManagement {
             library("postgresql", "org.testcontainers", "postgresql").version(testContainersVersion)
             library("mockOauth2Server", "no.nav.security", "mock-oauth2-server").version(mockOauth2ServerVersion)
             library("ktorServerTests", "io.ktor", "ktor-server-tests").version("2.3.11")
+            library("ktorClientMock", "io.ktor", "ktor-client-mock").version("2.3.11")
             library("kotlinTest", "org.jetbrains.kotlin", "kotlin-test").version("1.6.21")
             library("kotestFrameworkEngine", "io.kotest", "kotest-framework-engine").version(kotestVersion)
             library("kafkaStreamsTestUtils", "org.apache.kafka", "kafka-streams-test-utils").version(orgApacheKafkaVersion)

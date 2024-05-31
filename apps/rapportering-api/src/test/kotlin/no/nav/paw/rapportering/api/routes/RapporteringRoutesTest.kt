@@ -4,12 +4,16 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.headersOf
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -27,6 +31,7 @@ import no.nav.paw.rapportering.api.domain.response.toResponse
 import no.nav.paw.rapportering.api.kafka.RapporteringProducer
 import no.nav.paw.rapportering.api.kafka.RapporteringTilgjengeligState
 import no.nav.paw.rapportering.api.services.AutorisasjonService
+import no.nav.paw.rapportering.api.utils.JsonUtil.objectMapper
 import no.nav.paw.rapportering.internehendelser.RapporteringTilgjengelig
 import no.nav.security.mock.oauth2.MockOAuth2Server
 import org.apache.kafka.common.serialization.Serializer
@@ -36,6 +41,22 @@ import org.apache.kafka.streams.state.HostInfo
 import org.apache.kafka.streams.state.ReadOnlyKeyValueStore
 import java.time.Instant
 import java.util.*
+
+private fun createMockedHttpClient(content: String): HttpClient {
+    return HttpClient(MockEngine) {
+        engine {
+            addHandler {
+                respond(
+                    content = content,
+                    headers = headersOf(
+                        HttpHeaders.ContentType, "application/json"
+                    )
+
+                )
+            }
+        }
+    }
+}
 
 class RapporteringRoutesTest : FreeSpec({
     val applicationConfig = loadNaisOrLocalConfiguration<ApplicationConfig>(APPLICATION_CONFIG_FILE_NAME)
@@ -142,11 +163,22 @@ class RapporteringRoutesTest : FreeSpec({
             }
         }
         "should return OK status and list of rapporteringer when stateStore is null and queryMetadataForKey exists" {
+            val tilgjengeligRapporteringerResponse: TilgjengeligRapporteringerResponse = listOf(
+                TilgjengeligRapportering(
+                    periodeId = UUID.randomUUID(),
+                    rapporteringsId = UUID.randomUUID(),
+                    gjelderFra = Instant.now(),
+                    gjelderTil = Instant.now()
+                )
+
+            )
+
+            val mockHttpClient = createMockedHttpClient(objectMapper.writeValueAsString(tilgjengeligRapporteringerResponse))
             sharedTestApplication(
                 kafkaKeyClient,
                 rapporteringStateStore,
                 kafkaStreams,
-                httpClient,
+                mockHttpClient,
                 rapporteringProducer,
                 autorisasjonService,
                 authProviders
@@ -164,23 +196,6 @@ class RapporteringRoutesTest : FreeSpec({
                     null,
                     1
                 )
-                val rapporteringState = RapporteringTilgjengeligState(
-                    rapporteringer = listOf(
-                        RapporteringTilgjengelig(
-                            hendelseId = UUID.randomUUID(),
-                            periodeId = UUID.randomUUID(),
-                            identitetsnummer = "12345678901",
-                            arbeidssoekerId = 1L,
-                            rapporteringsId = UUID.randomUUID(),
-                            gjelderFra = Instant.now(),
-                            gjelderTil = Instant.now()
-                        )
-                    )
-                ).rapporteringer.toResponse()
-                coEvery { httpClient.post(any<String>(), any()) } returns mockk {
-                    every { status } returns HttpStatusCode.OK
-                    coEvery { body<TilgjengeligRapporteringerResponse>() } returns rapporteringState
-                }
 
                 val token = oauth.issueToken(claims = mapOf("acr" to "idporten-loa-high", "pid" to "12345678901"))
 
@@ -192,7 +207,7 @@ class RapporteringRoutesTest : FreeSpec({
                     setBody(postBody)
                 }
                 response.status shouldBe HttpStatusCode.OK
-                response.body<List<TilgjengeligRapportering>?>() shouldBe rapporteringState
+                response.body<List<TilgjengeligRapportering>?>() shouldBe tilgjengeligRapporteringerResponse
             }
         }
     }

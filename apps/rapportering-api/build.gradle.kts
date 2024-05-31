@@ -63,6 +63,7 @@ dependencies {
 
     // Test
     testImplementation(ktorServer.testJvm)
+    testImplementation(testLibs.ktorClientMock)
     testImplementation(testLibs.bundles.withUnitTesting)
     testImplementation(testLibs.mockk)
     testImplementation(testLibs.kafkaStreamsTestUtils)

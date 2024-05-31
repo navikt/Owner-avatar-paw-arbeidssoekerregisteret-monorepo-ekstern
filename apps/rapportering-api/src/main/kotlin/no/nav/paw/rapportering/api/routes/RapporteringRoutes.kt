@@ -33,7 +33,7 @@ fun Route.rapporteringRoutes(
     kafkaStreams: KafkaStreams,
     httpClient: HttpClient,
     rapporteringProducer: RapporteringProducer,
-    autorisasjonService: AutorisasjonService
+    autorisasjonService: AutorisasjonService,
 ) {
     route("/api/v1") {
         authenticate("tokenx", "azure") {
@@ -46,26 +46,29 @@ fun Route.rapporteringRoutes(
                         ?.rapporteringer
                         ?.toResponse()
                         ?.let { rapporteringerTilgjengelig ->
-                            logger.info("Fant ${rapporteringerTilgjengelig.size} rapporteringer")
+                            logger.info("Fant ${rapporteringerTilgjengelig.size} tilgjengelige rapporteringer")
                             return@post call.respond(HttpStatusCode.OK, rapporteringerTilgjengelig)
                         }
 
-                    val metadata = kafkaStreams.queryMetadataForKey(
-                        rapporteringStateStoreName, arbeidssoekerId, Serdes.Long().serializer()
-                    )
+                    val metadata =
+                        kafkaStreams.queryMetadataForKey(
+                            rapporteringStateStoreName,
+                            arbeidssoekerId,
+                            Serdes.Long().serializer(),
+                        )
 
                     if (metadata == null || metadata == KeyQueryMetadata.NOT_AVAILABLE) {
                         logger.info("Fant ikke metadata for arbeidsoeker, $metadata")
                         return@post call.respond(HttpStatusCode.OK, emptyList<TilgjengeligRapporteringerResponse>())
                     } else {
-                        val response = httpClient.post("http://${metadata.activeHost().host()}/api/v1/tilgjengelige-rapporteringer") {
-                            call.request.headers["Authorization"]?.let { bearerAuth(it) }
-                            setBody(request)
-                        }
+                        val response =
+                            httpClient.post("http://${metadata.activeHost().host()}/api/v1/tilgjengelige-rapporteringer") {
+                                call.request.headers["Authorization"]?.let { bearerAuth(it) }
+                                setBody(request)
+                            }
                         return@post call.respond(response.status, response.body())
                     }
                 }
-
             }
             post<RapporteringRequest>("/rapportering") { rapportering ->
                 with(requestScope(rapportering.identitetsnummer, autorisasjonService, kafkaKeyClient, TilgangType.SKRIVE)) {
@@ -83,18 +86,22 @@ fun Route.rapporteringRoutes(
                             return@post call.respond(HttpStatusCode.OK)
                         }
 
-                    val metadata = kafkaStreams.queryMetadataForKey(
-                        rapporteringStateStoreName, arbeidsoekerId, Serdes.Long().serializer()
-                    )
+                    val metadata =
+                        kafkaStreams.queryMetadataForKey(
+                            rapporteringStateStoreName,
+                            arbeidsoekerId,
+                            Serdes.Long().serializer(),
+                        )
 
                     if (metadata == null || metadata == KeyQueryMetadata.NOT_AVAILABLE) {
                         logger.info("Fant ikke metadata for arbeidsoeker, $metadata")
                         return@post call.respond(HttpStatusCode.NotFound)
                     } else {
-                        val response = httpClient.post("http://${metadata.activeHost().host()}/api/v1/rapportering") {
-                            call.request.headers["Authorization"]?.let { bearerAuth(it) }
-                            setBody(rapportering)
-                        }
+                        val response =
+                            httpClient.post("http://${metadata.activeHost().host()}/api/v1/rapportering") {
+                                call.request.headers["Authorization"]?.let { bearerAuth(it) }
+                                setBody(rapportering)
+                            }
                         return@post call.respond(response.status)
                     }
                 }
@@ -102,4 +109,3 @@ fun Route.rapporteringRoutes(
         }
     }
 }
-

@@ -64,6 +64,13 @@ dependencies {
     // Test
     testImplementation(ktorServer.testJvm)
     testImplementation(testLibs.bundles.withUnitTesting)
+    testImplementation(testLibs.mockk)
+    testImplementation(testLibs.kafkaStreamsTestUtils)
+    testImplementation(testLibs.kotlinTest)
+    testImplementation(testLibs.kotestFrameworkEngine)
+    testImplementation(testLibs.kafkaClients)
+    testImplementation(testLibs.ktorServerTests)
+    testImplementation(testLibs.mockOauth2Server)
 }
 
 sourceSets {
@@ -106,9 +113,10 @@ jib {
     from.image = "$baseImage:$jvmMajorVersion"
     to.image = "${image ?: project.name}:${project.version}"
     container {
-        environment = mapOf(
-            "IMAGE_WITH_VERSION" to "${image ?: project.name}:${project.version}"
-        )
+        environment =
+            mapOf(
+                "IMAGE_WITH_VERSION" to "${image ?: project.name}:${project.version}",
+            )
         jvmFlags = listOf("-XX:ActiveProcessorCount=4", "-XX:+UseZGC", "-XX:+ZGenerational")
     }
 }

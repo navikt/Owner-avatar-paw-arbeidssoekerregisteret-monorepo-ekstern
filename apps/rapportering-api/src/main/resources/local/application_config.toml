@@ -3,7 +3,7 @@ producerId = "paw-rapportering-api-v1"
 rapporteringTopic = "paw.rapportering-v1"
 rapporteringHendelseLoggTopic = "paw.rapportering-hendelse-logg-v1"
 rapporteringStateStoreName = "RapporteringStateStore"
-hostname = "${HOSTNAME}"
+hostname = "${HOSTNAME:-paw-rapportering-api-v1}"
 
 [[authProviders]]
 name = "tokenx"

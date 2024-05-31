@@ -20,7 +20,7 @@ include(
     "apps:microfrontend-toggler",
     "domain:rapportering-interne-hendelser",
     "domain:rapporteringsansvar-schema",
-    "domain:rapporteringsmelding-schema"
+    "domain:rapporteringsmelding-schema",
 )
 
 dependencyResolutionManagement {
@@ -91,8 +91,14 @@ dependencyResolutionManagement {
         val coroutinesVersion = "1.8.0"
         val rapporteringsSchemaVersion = "24.05.15.2-1"
 
-        fun VersionCatalogBuilder.ktorLib(alias: String, artifactId: String) = library(alias, "io.ktor", artifactId).version("2.3.10")
-        fun VersionCatalogBuilder.ktorLibs(vararg aliases: Pair<String, String>) = aliases.forEach { (artifactId, alias) -> ktorLib(alias, artifactId) }
+        fun VersionCatalogBuilder.ktorLib(
+            alias: String,
+            artifactId: String,
+        ) = library(alias, "io.ktor", artifactId).version("2.3.10")
+
+        fun VersionCatalogBuilder.ktorLibs(vararg aliases: Pair<String, String>) =
+            aliases.forEach { (artifactId, alias) -> ktorLib(alias, artifactId) }
+
         infix fun String.alias(alias: String) = this to alias
         create("kotlinx") {
             library("coroutinesCore", "org.jetbrains.kotlinx", "kotlinx-coroutines-core").version(coroutinesVersion)
@@ -105,17 +111,18 @@ dependencyResolutionManagement {
             ktorLibs(
                 "ktor-client-content-negotiation" alias "contentNegotiation",
                 "ktor-client-core" alias "core",
-                "ktor-client-cio" alias "cio"
+                "ktor-client-cio" alias "cio",
             )
         }
         create("ktorServer") {
             bundle(
-                "withNettyAndMicrometer", listOf(
+                "withNettyAndMicrometer",
+                listOf(
                     "core",
                     "coreJvm",
                     "netty",
-                    "micrometer"
-                )
+                    "micrometer",
+                ),
             )
             ktorLibs(
                 "ktor-server-cors" alias "cors",
@@ -129,7 +136,7 @@ dependencyResolutionManagement {
                 "ktor-server-netty" alias "netty",
                 "ktor-server-auth" alias "auth",
                 "ktor-server-metrics-micrometer" alias "micrometer",
-                "ktor-server-tests-jvm" alias "testJvm"
+                "ktor-server-tests-jvm" alias "testJvm",
             )
         }
         create("ktor") {
@@ -137,13 +144,17 @@ dependencyResolutionManagement {
                 "ktor-serialization" alias "serialization",
                 "ktor-serialization-jvm" alias "serializationJvm",
                 "ktor-serialization-jackson" alias "serializationJackson",
-                "ktor-serialization-kotlinx-json" alias "serializationJson"
+                "ktor-serialization-kotlinx-json" alias "serializationJson",
             )
         }
         create("otel") {
             library("api", "io.opentelemetry", "opentelemetry-api").version(otelTargetSdkVersion)
-            library("ktor","io.opentelemetry.instrumentation", "opentelemetry-ktor-2.0").version(otelInstrumentationVersion)
-            library("annotations", "io.opentelemetry.instrumentation", "opentelemetry-instrumentation-annotations").version(otelInstrumentationVersion)
+            library("ktor", "io.opentelemetry.instrumentation", "opentelemetry-ktor-2.0").version(otelInstrumentationVersion)
+            library(
+                "annotations",
+                "io.opentelemetry.instrumentation",
+                "opentelemetry-instrumentation-annotations",
+            ).version(otelInstrumentationVersion)
         }
         create("micrometer") {
             library("core", "io.micrometer", "micrometer-core").version(micrometerVersion)
@@ -154,7 +165,11 @@ dependencyResolutionManagement {
             library("pawAaregClient", "no.nav.paw", "aareg-client").version(pawAaregClientVersion)
         }
         create("arbeidssoekerRegisteret") {
-            library("apiKotlin", "no.nav.paw.arbeidssokerregisteret.api.schema", "arbeidssoekerregisteret-kotlin").version(arbeidssokerregisteretVersion)
+            library(
+                "apiKotlin",
+                "no.nav.paw.arbeidssokerregisteret.api.schema",
+                "arbeidssoekerregisteret-kotlin",
+            ).version(arbeidssokerregisteretVersion)
             library("mainAvroSchema", "no.nav.paw.arbeidssokerregisteret.api", "main-avro-schema").version(arbeidssokerregisteretVersion)
         }
         create("orgApacheKafka") {
@@ -197,11 +212,12 @@ dependencyResolutionManagement {
         }
         create("testLibs") {
             bundle(
-                "withUnitTesting", listOf(
+                "withUnitTesting",
+                listOf(
                     "runnerJunit5",
                     "assertionsCore",
-                    "mockk"
-                )
+                    "mockk",
+                ),
             )
             library("runnerJunit5", "io.kotest", "kotest-runner-junit5").version(kotestVersion)
             library("assertionsCore", "io.kotest", "kotest-assertions-core").version(kotestVersion)
@@ -209,13 +225,26 @@ dependencyResolutionManagement {
             library("testContainers", "org.testcontainers", "testcontainers").version(testContainersVersion)
             library("postgresql", "org.testcontainers", "postgresql").version(testContainersVersion)
             library("mockOauth2Server", "no.nav.security", "mock-oauth2-server").version(mockOauth2ServerVersion)
+            library("ktorServerTests", "io.ktor", "ktor-server-tests").version("2.3.11")
+            library("kotlinTest", "org.jetbrains.kotlin", "kotlin-test").version("1.6.21")
+            library("kotestFrameworkEngine", "io.kotest", "kotest-framework-engine").version(kotestVersion)
+            library("kafkaStreamsTestUtils", "org.apache.kafka", "kafka-streams-test-utils").version(orgApacheKafkaVersion)
+            library("kafkaClients", "org.apache.kafka", "kafka-clients").version(orgApacheKafkaVersion)
         }
         create("poao") {
             library("tilgangClient", "no.nav.poao-tilgang", "client").version("2024.04.29_13.59-a0ddddd36ac9")
         }
         create("rapportering") {
-            library("rapporteringsansvarSchema", "no.nav.paw.arbeidssokerregisteret.api", "rapporteringsansvar-schema").version(rapporteringsSchemaVersion)
-            library("rapporteringsmeldingSchema", "no.nav.paw.arbeidssokerregisteret.api", "rapporteringsmelding-schema").version(rapporteringsSchemaVersion)
+            library(
+                "rapporteringsansvarSchema",
+                "no.nav.paw.arbeidssokerregisteret.api",
+                "rapporteringsansvar-schema",
+            ).version(rapporteringsSchemaVersion)
+            library(
+                "rapporteringsmeldingSchema",
+                "no.nav.paw.arbeidssokerregisteret.api",
+                "rapporteringsmelding-schema",
+            ).version(rapporteringsSchemaVersion)
         }
     }
 }

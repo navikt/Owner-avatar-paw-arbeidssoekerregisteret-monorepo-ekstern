@@ -5,7 +5,9 @@ import io.ktor.client.call.*
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.server.application.call
 import io.ktor.server.auth.*
 import io.ktor.server.response.respond
@@ -64,9 +66,10 @@ fun Route.rapporteringRoutes(
                         val response =
                             httpClient.post("http://${metadata.activeHost().host()}/api/v1/tilgjengelige-rapporteringer") {
                                 call.request.headers["Authorization"]?.let { bearerAuth(it) }
+                                contentType(ContentType.Application.Json)
                                 setBody(request)
                             }
-                        return@post call.respond(response.status, response.body())
+                        return@post call.respond(response.status, response.body<TilgjengeligRapporteringerResponse>())
                     }
                 }
             }

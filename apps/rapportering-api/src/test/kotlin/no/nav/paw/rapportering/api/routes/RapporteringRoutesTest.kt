@@ -1,11 +1,17 @@
 package no.nav.paw.rapportering.api.routes
 
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.accept
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -14,6 +20,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.headersOf
+import io.ktor.serialization.jackson.jackson
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -44,13 +51,20 @@ import java.util.*
 
 private fun createMockedHttpClient(content: String): HttpClient {
     return HttpClient(MockEngine) {
+        install(ContentNegotiation) {
+            jackson {
+                disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                registerModule(JavaTimeModule())
+                registerKotlinModule()
+            }
+        }
         engine {
             addHandler {
                 respond(
                     content = content,
-                    headers = headersOf(
-                        HttpHeaders.ContentType, "application/json"
-                    )
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
 
                 )
             }
@@ -173,7 +187,8 @@ class RapporteringRoutesTest : FreeSpec({
 
             )
 
-            val mockHttpClient = createMockedHttpClient(objectMapper.writeValueAsString(tilgjengeligRapporteringerResponse))
+            val mockHttpClient =
+                createMockedHttpClient(objectMapper.writeValueAsString(tilgjengeligRapporteringerResponse))
             sharedTestApplication(
                 kafkaKeyClient,
                 rapporteringStateStore,
@@ -185,6 +200,7 @@ class RapporteringRoutesTest : FreeSpec({
             ) { testClient ->
                 coEvery { kafkaKeyClient.getIdAndKey(any()) } returns KafkaKeysResponse(1L, 1234L)
                 coEvery { autorisasjonService.verifiserTilgangTilBruker(any(), any(), any()) } returns true
+                every { rapporteringStateStore.get(any()) } returns null
                 every {
                     kafkaStreams.queryMetadataForKey(
                         any(),
@@ -199,12 +215,11 @@ class RapporteringRoutesTest : FreeSpec({
 
                 val token = oauth.issueToken(claims = mapOf("acr" to "idporten-loa-high", "pid" to "12345678901"))
 
-                val postBody = TilgjengeligeRapporteringerRequest("12345678901")
-
                 val response = testClient.post("/api/v1/tilgjengelige-rapporteringer") {
                     bearerAuth(token.serialize())
                     contentType(ContentType.Application.Json)
-                    setBody(postBody)
+                    accept(ContentType.Application.Json)
+                    setBody(TilgjengeligeRapporteringerRequest("12345678901"))
                 }
                 response.status shouldBe HttpStatusCode.OK
                 response.body<List<TilgjengeligRapportering>?>() shouldBe tilgjengeligRapporteringerResponse

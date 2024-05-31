@@ -36,31 +36,24 @@ import java.util.*
 class RapporteringRoutesTest : FreeSpec({
     val applicationConfig = loadNaisOrLocalConfiguration<ApplicationConfig>(APPLICATION_CONFIG_FILE_NAME)
 
-    val kafkaKeyClient = mockk<KafkaKeysClient>()
-    val rapporteringStateStore = mockk<ReadOnlyKeyValueStore<Long, RapporteringTilgjengeligState>>()
-    val kafkaStreams = mockk<KafkaStreams>()
-    val httpClient = mockk<HttpClient>()
-
-    val rapporteringProducer = mockk<RapporteringProducer>()
-    val autorisasjonService = mockk<AutorisasjonService>()
+    val kafkaKeyClient: KafkaKeysClient = mockk()
+    val rapporteringStateStore: ReadOnlyKeyValueStore<Long, RapporteringTilgjengeligState> = mockk()
+    val kafkaStreams: KafkaStreams = mockk()
+    val httpClient: HttpClient = mockk()
+    val rapporteringProducer: RapporteringProducer = mockk()
+    val autorisasjonService: AutorisasjonService = mockk()
 
     val oauth = MockOAuth2Server()
 
-    beforeSpec {
-        oauth.start()
-    }
+    beforeSpec { oauth.start() }
 
-    afterSpec {
-        oauth.shutdown()
-    }
-
+    afterSpec { oauth.shutdown() }
 
     "Post /api/v1/tilgjengelige-rapporteringer" - {
         val discoveryUrl = oauth.wellKnownUrl("default").toString()
         val authProviders =
-            applicationConfig.authProviders.map {
-                it.copy(discoveryUrl = discoveryUrl, clientId = "default")
-            }
+            applicationConfig.authProviders.map { it.copy(discoveryUrl = discoveryUrl, clientId = "default") }
+
         "should return OK status and empty list of TilgjengeligRapporteringerResponse" {
             sharedTestApplication(
                 kafkaKeyClient,
@@ -74,26 +67,23 @@ class RapporteringRoutesTest : FreeSpec({
                 coEvery { kafkaKeyClient.getIdAndKey(any()) } returns KafkaKeysResponse(1L, 1234L)
                 coEvery { autorisasjonService.verifiserTilgangTilBruker(any(), any(), any()) } returns true
                 every { rapporteringStateStore.get(any()) } returns null
-                every { kafkaStreams.queryMetadataForKey(any(), any(), any<Serializer<Long>>()) } returns
-                        KeyQueryMetadata.NOT_AVAILABLE
-
-                val token =
-                    oauth.issueToken(
-                        claims =
-                        mapOf(
-                            "acr" to "idporten-loa-high",
-                            "pid" to "12345678901",
-                        ),
+                every {
+                    kafkaStreams.queryMetadataForKey(
+                        any(),
+                        any(),
+                        any<Serializer<Long>>()
                     )
+                } returns KeyQueryMetadata.NOT_AVAILABLE
+
+                val token = oauth.issueToken(claims = mapOf("acr" to "idporten-loa-high", "pid" to "12345678901"))
 
                 val postBody = TilgjengeligeRapporteringerRequest("12345678901")
 
-                val response =
-                    testClient.post("/api/v1/tilgjengelige-rapporteringer") {
-                        bearerAuth(token.serialize())
-                        contentType(ContentType.Application.Json)
-                        setBody(postBody)
-                    }
+                val response = testClient.post("/api/v1/tilgjengelige-rapporteringer") {
+                    bearerAuth(token.serialize())
+                    contentType(ContentType.Application.Json)
+                    setBody(postBody)
+                }
                 response.status shouldBe HttpStatusCode.OK
                 response.body<List<TilgjengeligRapportering>?>() shouldBe emptyList()
             }
@@ -103,9 +93,8 @@ class RapporteringRoutesTest : FreeSpec({
     "Post /api/v1/rapportering" - {
         val discoveryUrl = oauth.wellKnownUrl("default").toString()
         val authProviders =
-            applicationConfig.authProviders.map {
-                it.copy(discoveryUrl = discoveryUrl, clientId = "default")
-            }
+            applicationConfig.authProviders.map { it.copy(discoveryUrl = discoveryUrl, clientId = "default") }
+
         "should return OK status" {
             sharedTestApplication(
                 kafkaKeyClient,
@@ -120,47 +109,30 @@ class RapporteringRoutesTest : FreeSpec({
 
                 coEvery { kafkaKeyClient.getIdAndKey(any()) } returns KafkaKeysResponse(1L, 1L)
                 coEvery { autorisasjonService.verifiserTilgangTilBruker(any(), any(), any()) } returns true
-                every { rapporteringStateStore.get(any()) } returns
-                        RapporteringTilgjengeligState(
-                            rapporteringer =
-                            listOf(
-                                RapporteringTilgjengelig(
-                                    periodeId = UUID.randomUUID(),
-                                    hendelseId = UUID.randomUUID(),
-                                    rapporteringsId = rapporteringsId,
-                                    identitetsnummer = "12345678901",
-                                    arbeidssoekerId = 1L,
-                                    gjelderFra = Instant.now(),
-                                    gjelderTil = Instant.now(),
-                                ),
-                            ),
+                every { rapporteringStateStore.get(any()) } returns RapporteringTilgjengeligState(
+                    rapporteringer = listOf(
+                        RapporteringTilgjengelig(
+                            periodeId = UUID.randomUUID(),
+                            hendelseId = UUID.randomUUID(),
+                            rapporteringsId = rapporteringsId,
+                            identitetsnummer = "12345678901",
+                            arbeidssoekerId = 1L,
+                            gjelderFra = Instant.now(),
+                            gjelderTil = Instant.now(),
                         )
+                    )
+                )
                 coEvery { rapporteringProducer.produceMessage(any(), any()) } returns Unit
 
-                val postToken =
-                    oauth.issueToken(
-                        claims =
-                        mapOf(
-                            "acr" to "idporten-loa-high",
-                            "pid" to "12345678901",
-                        ),
-                    )
+                val postToken = oauth.issueToken(claims = mapOf("acr" to "idporten-loa-high", "pid" to "12345678901"))
 
-                val postBody =
-                    RapporteringRequest(
-                        "12345678901",
-                        rapporteringsId,
-                        true,
-                        true,
-                    )
+                val postBody = RapporteringRequest("12345678901", rapporteringsId, true, true)
 
-                val response =
-                    testClient.post("/api/v1/rapportering") {
-                        bearerAuth(postToken.serialize())
-                        contentType(ContentType.Application.Json)
-                        setBody(postBody)
-                    }
-
+                val response = testClient.post("/api/v1/rapportering") {
+                    bearerAuth(postToken.serialize())
+                    contentType(ContentType.Application.Json)
+                    setBody(postBody)
+                }
                 response.status shouldBe HttpStatusCode.OK
             }
         }

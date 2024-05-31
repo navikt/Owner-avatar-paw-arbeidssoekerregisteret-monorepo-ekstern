@@ -1,21 +1,15 @@
 package no.nav.paw.rapportering.api.routes
 
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
-import io.ktor.serialization.jackson.jackson
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -76,7 +70,7 @@ class RapporteringRoutesTest : FreeSpec({
                 rapporteringProducer,
                 autorisasjonService,
                 authProviders
-            ) {
+            ) { testClient ->
                 coEvery { kafkaKeyClient.getIdAndKey(any()) } returns KafkaKeysResponse(1L, 1234L)
                 coEvery { autorisasjonService.verifiserTilgangTilBruker(any(), any(), any()) } returns true
                 every { rapporteringStateStore.get(any()) } returns null
@@ -94,16 +88,6 @@ class RapporteringRoutesTest : FreeSpec({
 
                 val postBody = TilgjengeligeRapporteringerRequest("12345678901")
 
-                val testClient = createClient {
-                    install(ContentNegotiation) {
-                        jackson {
-                            disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                            disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                            registerModule(JavaTimeModule())
-                            registerKotlinModule()
-                        }
-                    }
-                }
                 val response =
                     testClient.post("/api/v1/tilgjengelige-rapporteringer") {
                         bearerAuth(token.serialize())
@@ -131,7 +115,7 @@ class RapporteringRoutesTest : FreeSpec({
                 rapporteringProducer,
                 autorisasjonService,
                 authProviders
-            ) {
+            ) { testClient ->
                 val rapporteringsId = UUID.randomUUID()
 
                 coEvery { kafkaKeyClient.getIdAndKey(any()) } returns KafkaKeysResponse(1L, 1L)
@@ -169,17 +153,6 @@ class RapporteringRoutesTest : FreeSpec({
                         true,
                         true,
                     )
-
-                val testClient = createClient {
-                    install(ContentNegotiation) {
-                        jackson {
-                            disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                            disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                            registerModule(JavaTimeModule())
-                            registerKotlinModule()
-                        }
-                    }
-                }
 
                 val response =
                     testClient.post("/api/v1/rapportering") {
